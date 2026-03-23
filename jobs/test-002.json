@@ -1,0 +1,11 @@
+{
+  "headline": "TEST VIDEO",
+  "slides": [
+    {"image": "https://picsum.photos/1080/1920", "text": "Slide 1"},
+    {"image": "https://picsum.photos/1080/1920", "text": "Slide 2"},
+    {"image": "https://picsum.photos/1080/1920", "text": "Slide 3"},
+    {"image": "https://picsum.photos/1080/1920", "text": "Slide 4"},
+    {"image": "https://picsum.photos/1080/1920", "text": "Slide 5"}
+  ],
+  "animation_style": "zoom_in"
+}
