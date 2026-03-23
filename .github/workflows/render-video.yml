@@ -6,9 +6,6 @@ on:
       job_id:
         description: 'Unique job ID for this render'
         required: true
-      callback_url:
-        description: 'URL to POST result to (optional)'
-        required: false
 
 jobs:
   render:
@@ -24,12 +21,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg curl jq
       
-      - name: Download fonts
-        run: |
-          mkdir -p fonts
-          curl -sL -o fonts/BebasNeue-Regular.ttf "https://github.com/dharmatype/Bebas-Neue/raw/master/fonts/BebasNeue-Regular.ttf"
-          curl -sL -o fonts/Poppins-Bold.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Bold.ttf"
-      
       - name: Read job spec
         id: spec
         run: |
@@ -38,41 +29,60 @@ jobs:
             echo "Job file not found: $JOB_FILE"
             exit 1
           fi
-          echo "spec=$(cat $JOB_FILE | jq -c .)" >> $GITHUB_OUTPUT
+          cat "$JOB_FILE"
       
       - name: Download images
         run: |
           mkdir -p images
           JOB_FILE="jobs/${{ inputs.job_id }}.json"
-          for i in $(seq 0 4); do
-            URL=$(jq -r ".slides[$i].image" "$JOB_FILE")
-            if [ "$URL" != "null" ] && [ -n "$URL" ]; then
-              curl -sL -o "images/slide$i.jpg" "$URL"
-            fi
-          done
+          
+          URL0=$(jq -r '.slides[0].image' "$JOB_FILE")
+          URL1=$(jq -r '.slides[1].image' "$JOB_FILE")
+          URL2=$(jq -r '.slides[2].image' "$JOB_FILE")
+          URL3=$(jq -r '.slides[3].image' "$JOB_FILE")
+          URL4=$(jq -r '.slides[4].image' "$JOB_FILE")
+          
+          curl -sL -o images/slide0.jpg "$URL0" || true
+          curl -sL -o images/slide1.jpg "$URL1" || true
+          curl -sL -o images/slide2.jpg "$URL2" || true
+          curl -sL -o images/slide3.jpg "$URL3" || true
+          curl -sL -o images/slide4.jpg "$URL4" || true
+          
           ls -la images/
       
-      - name: Create slides
+      - name: Process slides to 1080x1920
         run: |
           mkdir -p slides
-          JOB_FILE="jobs/${{ inputs.job_id }}.json"
           
-          for i in $(seq 0 4); do
-            SLIDE_TEXT=$(jq -r ".slides[$i].text // \"\"" "$JOB_FILE")
-            
-            ffmpeg -y -i "images/slide$i.jpg" \
-              -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,drawbox=x=0:y=0:w=1080:h=1920:color=black@0.4:t=fill" \
-              -q:v 2 "slides/slide$i.jpg" 2>/dev/null || \
-              ffmpeg -y -i "images/slide$i.jpg" -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920" "slides/slide$i.jpg"
+          for i in 0 1 2 3 4; do
+            if [ -f "images/slide$i.jpg" ]; then
+              ffmpeg -y -i "images/slide$i.jpg" \
+                -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920" \
+                -q:v 2 "slides/slide$i.jpg"
+            fi
           done
+          
           ls -la slides/
       
-      - name: Render video with animation
+      - name: Render video with Ken Burns effect
         run: |
-          ffmpeg -y -framerate 1/3 -i "slides/slide%d.jpg" \
-            -vf "zoompan=z='min(zoom+0.001,1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30" \
-            -c:v libx264 -pix_fmt yuv420p -t 15 \
-            output.mp4
+          # Create video from 5 slides, 3 seconds each with zoom effect
+          ffmpeg -y \
+            -loop 1 -t 3 -i slides/slide0.jpg \
+            -loop 1 -t 3 -i slides/slide1.jpg \
+            -loop 1 -t 3 -i slides/slide2.jpg \
+            -loop 1 -t 3 -i slides/slide3.jpg \
+            -loop 1 -t 3 -i slides/slide4.jpg \
+            -filter_complex "
+              [0:v]zoompan=z='min(zoom+0.0015,1.2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30[v0];
+              [1:v]zoompan=z='min(zoom+0.0015,1.2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30[v1];
+              [2:v]zoompan=z='min(zoom+0.0015,1.2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30[v2];
+              [3:v]zoompan=z='min(zoom+0.0015,1.2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30[v3];
+              [4:v]zoompan=z='min(zoom+0.0015,1.2)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30[v4];
+              [v0][v1][v2][v3][v4]concat=n=5:v=1:a=0[out]
+            " \
+            -map "[out]" -c:v libx264 -pix_fmt yuv420p output.mp4
+          
           ls -la output.mp4
       
       - name: Upload to catbox
@@ -81,21 +91,29 @@ jobs:
           RESPONSE=$(curl -sF "reqtype=fileupload" -F "fileToUpload=@output.mp4" https://catbox.moe/user/api.php)
           echo "Video URL: $RESPONSE"
           echo "video_url=$RESPONSE" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" > video_url.txt
       
       - name: Save result
         run: |
           mkdir -p results
-          echo '{"job_id": "${{ inputs.job_id }}", "video_url": "${{ steps.upload.outputs.video_url }}", "status": "complete"}' > "results/${{ inputs.job_id }}.json"
+          VIDEO_URL=$(cat video_url.txt)
+          echo "{\"job_id\": \"${{ inputs.job_id }}\", \"video_url\": \"$VIDEO_URL\", \"status\": \"complete\"}" > "results/${{ inputs.job_id }}.json"
+          cat "results/${{ inputs.job_id }}.json"
       
       - name: Commit result
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
+          git pull --rebase || true
           git add results/
           git commit -m "Render complete: ${{ inputs.job_id }}" || true
           git push || true
       
-      - name: Output result
+      - name: Summary
         run: |
-          echo "✅ Video rendered successfully!"
-          echo "📹 URL: ${{ steps.upload.outputs.video_url }}"
+          VIDEO_URL=$(cat video_url.txt)
+          echo "## ✅ Video Rendered Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Video URL:** $VIDEO_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job ID:** ${{ inputs.job_id }}" >> $GITHUB_STEP_SUMMARY
