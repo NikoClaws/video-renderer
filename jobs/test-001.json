@@ -1,0 +1,11 @@
+{
+  "headline": "BREAKING K-POP NEWS",
+  "slides": [
+    {"image": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Kang_Daniel_in_2019.png/440px-Kang_Daniel_in_2019.png", "text": "BREAKING NEWS"},
+    {"image": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/190421_ITZY_Yuna.jpg/440px-190421_ITZY_Yuna.jpg", "text": "K-POP SCANDAL"},
+    {"image": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/IU_at_Melon_Music_Awards_2017_02.jpg/440px-IU_at_Melon_Music_Awards_2017_02.jpg", "text": "EXCLUSIVE"},
+    {"image": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/BTS_on_the_Billboard_Music_Awards_red_carpet%2C_1_May_2019.jpg/600px-BTS_on_the_Billboard_Music_Awards_red_carpet%2C_1_May_2019.jpg", "text": "FULL STORY"},
+    {"image": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/BLACKPINK_PUBG_Mobile_2022.jpg/560px-BLACKPINK_PUBG_Mobile_2022.jpg", "text": "READ MORE AT ASIANBUS.COM"}
+  ],
+  "animation_style": "zoom_in"
+}
