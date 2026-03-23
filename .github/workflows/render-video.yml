@@ -42,15 +42,20 @@ jobs:
       
       - name: Render video
         run: |
-          # Simple concat with fade transitions
-          ffmpeg -y \
-            -loop 1 -t 3 -i slides/slide0.jpg \
-            -loop 1 -t 3 -i slides/slide1.jpg \
-            -loop 1 -t 3 -i slides/slide2.jpg \
-            -loop 1 -t 3 -i slides/slide3.jpg \
-            -loop 1 -t 3 -i slides/slide4.jpg \
-            -filter_complex "[0:v][1:v][2:v][3:v][4:v]concat=n=5:v=1:a=0[out]" \
-            -map "[out]" -c:v libx264 -pix_fmt yuv420p -r 30 output.mp4
+          # Create individual video clips from each image (3 seconds each)
+          for i in 0 1 2 3 4; do
+            ffmpeg -y -loop 1 -i "slides/slide$i.jpg" -t 3 -c:v libx264 -pix_fmt yuv420p -r 30 "clip$i.mp4"
+          done
+          
+          # Create concat list
+          echo "file 'clip0.mp4'" > concat.txt
+          echo "file 'clip1.mp4'" >> concat.txt
+          echo "file 'clip2.mp4'" >> concat.txt
+          echo "file 'clip3.mp4'" >> concat.txt
+          echo "file 'clip4.mp4'" >> concat.txt
+          
+          # Concat all clips
+          ffmpeg -y -f concat -safe 0 -i concat.txt -c copy output.mp4
           
           ls -la output.mp4
       
