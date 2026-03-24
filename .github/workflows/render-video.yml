@@ -158,8 +158,8 @@ jobs:
               CTA=",drawtext=text='SWIPE →':fontsize=32:fontcolor=white@0.9:x=(w-text_w)/2:y=1780:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
             fi
             
-            # Dark overlay for text readability
-            OVERLAY="drawbox=x=0:y=750:w=1080:h=280:c=black@0.5:t=fill"
+            # Dark overlay for text readability - stronger opacity
+            OVERLAY="drawbox=x=0:y=750:w=1080:h=300:c=black@0.7:t=fill"
             
             # Build full filter
             FILTER="${ZP},${OVERLAY},${HEADER},${COUNTER}${BADGE},${MAIN_TEXT}${CTA}"
