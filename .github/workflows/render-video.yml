@@ -28,17 +28,23 @@ jobs:
       
       - name: Prepare music track
         run: |
-          # Use music from repo
+          # List available tracks
           ls -la music/
           
-          # Pick a track (use track1.mp3 from repo)
-          cp music/track1.mp3 music.mp3
+          # Pick random track based on job hash
+          TRACKS=$(ls music/track*.mp3 | wc -l)
+          HASH=$(echo "${{ inputs.job_id }}" | md5sum | cut -c1-8)
+          INDEX=$((16#$HASH % $TRACKS + 1))
+          TRACK="music/track${INDEX}.mp3"
+          
+          echo "Selected: $TRACK"
+          cp "$TRACK" music.mp3
           
           # Verify
           ls -la music.mp3
           
-          # Trim to 15 seconds with fade
-          ffmpeg -y -i music.mp3 -t 15 -af "afade=t=out:st=13:d=2" music_trimmed.mp3
+          # Trim to 15 seconds with fade in/out for that trending feel
+          ffmpeg -y -i music.mp3 -t 15 -af "afade=t=in:st=0:d=0.5,afade=t=out:st=13:d=2,volume=1.5" music_trimmed.mp3
           ls -la music_trimmed.mp3
       
       - name: Download and process images
