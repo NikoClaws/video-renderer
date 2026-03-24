@@ -1,0 +1,10 @@
+{
+  "headline": "TEST VIDEO",
+  "slides": [
+    {"image": "https://picsum.photos/1080/1920?random=1", "text": "BREAKING NEWS"},
+    {"image": "https://picsum.photos/1080/1920?random=2", "text": "Second slide test"},
+    {"image": "https://picsum.photos/1080/1920?random=3", "text": "This is a longer caption to test wrapping"},
+    {"image": "https://picsum.photos/1080/1920?random=4", "text": "Fourth slide"},
+    {"image": "https://picsum.photos/1080/1920?random=5", "text": "Full story at asianbus.com"}
+  ]
+}
