@@ -26,20 +26,15 @@ jobs:
           curl -sL "https://github.com/google/fonts/raw/main/ofl/bebasneue/BebasNeue-Regular.ttf" -o ~/.fonts/BebasNeue-Regular.ttf
           fc-cache -f -v
       
-      - name: Download music track
+      - name: Prepare music track
         run: |
-          # Trendy music tracks - pick based on job hash
-          TRACKS="fjixyg l6ra3r 9wza7w u2x3ix aywlmn"
-          TRACK_ARRAY=($TRACKS)
-          HASH=$(echo "${{ inputs.job_id }}" | md5sum | cut -c1-8)
-          INDEX=$((16#$HASH % 5))
-          TRACK_ID=${TRACK_ARRAY[$INDEX]}
-          TRACK_URL="https://files.catbox.moe/${TRACK_ID}.mp3"
+          # Use music from repo
+          ls -la music/
           
-          echo "Selected track: $TRACK_URL"
-          curl -sL "$TRACK_URL" -o music.mp3
+          # Pick a track (use track1.mp3 from repo)
+          cp music/track1.mp3 music.mp3
           
-          # Verify download
+          # Verify
           ls -la music.mp3
           
           # Trim to 15 seconds with fade
