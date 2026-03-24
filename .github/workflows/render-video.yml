@@ -19,7 +19,11 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg curl jq imagemagick
+          sudo apt-get install -y ffmpeg curl jq imagemagick fonts-dejavu-core
+          
+          # Verify font exists
+          ls -la /usr/share/fonts/truetype/dejavu/ || echo "DejaVu fonts not found!"
+          fc-list | grep -i dejavu | head -3 || echo "Font not in fc-list"
       
       - name: Prepare music track
         run: |
@@ -160,12 +164,15 @@ jobs:
             # Build full filter
             FILTER="${ZP},${OVERLAY},${HEADER},${COUNTER}${BADGE},${MAIN_TEXT}${CTA}"
             
+            echo "FILTER=$FILTER"
+            
+            # Run ffmpeg and capture ALL output
             ffmpeg -y -i "slides/slide$i.jpg" \
               -vf "$FILTER" \
               -t 3 -c:v libx264 -pix_fmt yuv420p -r 30 \
-              "clip$i.mp4" 2>&1 | tail -3
+              "clip$i.mp4" 2>&1 || echo "FFMPEG FAILED for slide $i"
             
-            ls -la "clip$i.mp4"
+            ls -la "clip$i.mp4" || echo "NO CLIP CREATED"
           done
       
       - name: Add transitions and combine
