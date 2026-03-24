@@ -28,17 +28,19 @@ jobs:
       
       - name: Download music track
         run: |
-          # Trendy music tracks - pick random one
-          TRACKS=(
-            "https://files.catbox.moe/fjixyg.mp3"
-            "https://files.catbox.moe/l6ra3r.mp3"
-            "https://files.catbox.moe/9wza7w.mp3"
-            "https://files.catbox.moe/u2x3ix.mp3"
-            "https://files.catbox.moe/aywlmn.mp3"
-          )
-          RANDOM_TRACK=${TRACKS[$RANDOM % ${#TRACKS[@]}]}
-          echo "Selected track: $RANDOM_TRACK"
-          curl -sL "$RANDOM_TRACK" -o music.mp3
+          # Trendy music tracks - pick based on job hash
+          TRACKS="fjixyg l6ra3r 9wza7w u2x3ix aywlmn"
+          TRACK_ARRAY=($TRACKS)
+          HASH=$(echo "${{ inputs.job_id }}" | md5sum | cut -c1-8)
+          INDEX=$((16#$HASH % 5))
+          TRACK_ID=${TRACK_ARRAY[$INDEX]}
+          TRACK_URL="https://files.catbox.moe/${TRACK_ID}.mp3"
+          
+          echo "Selected track: $TRACK_URL"
+          curl -sL "$TRACK_URL" -o music.mp3
+          
+          # Verify download
+          ls -la music.mp3
           
           # Trim to 15 seconds with fade
           ffmpeg -y -i music.mp3 -t 15 -af "afade=t=out:st=13:d=2" music_trimmed.mp3
