@@ -10,54 +10,186 @@ on:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg curl jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg curl jq imagemagick fonts-bebas-neue fonts-open-sans
+          # Get additional fonts
+          mkdir -p ~/.fonts
+          curl -sL "https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf" -o ~/.fonts/Poppins-Bold.ttf
+          curl -sL "https://github.com/google/fonts/raw/main/ofl/bebasneue/BebasNeue-Regular.ttf" -o ~/.fonts/BebasNeue-Regular.ttf
+          fc-cache -f -v
+      
+      - name: Download music track
+        run: |
+          # Trendy music tracks - pick random one
+          TRACKS=(
+            "https://files.catbox.moe/fjixyg.mp3"
+            "https://files.catbox.moe/l6ra3r.mp3"
+            "https://files.catbox.moe/9wza7w.mp3"
+            "https://files.catbox.moe/u2x3ix.mp3"
+            "https://files.catbox.moe/aywlmn.mp3"
+          )
+          RANDOM_TRACK=${TRACKS[$RANDOM % ${#TRACKS[@]}]}
+          echo "Selected track: $RANDOM_TRACK"
+          curl -sL "$RANDOM_TRACK" -o music.mp3
+          
+          # Trim to 15 seconds with fade
+          ffmpeg -y -i music.mp3 -t 15 -af "afade=t=out:st=13:d=2" music_trimmed.mp3
+          ls -la music_trimmed.mp3
       
       - name: Download and process images
         run: |
           mkdir -p slides
           JOB_FILE="jobs/${{ inputs.job_id }}.json"
           
+          # Get headline
+          HEADLINE=$(jq -r '.headline' "$JOB_FILE")
+          echo "Headline: $HEADLINE"
+          
           for i in 0 1 2 3 4; do
             URL=$(jq -r ".slides[$i].image" "$JOB_FILE")
-            echo "Downloading slide $i from $URL"
+            TEXT=$(jq -r ".slides[$i].text" "$JOB_FILE")
+            echo "Downloading slide $i: $TEXT from $URL"
             
             # Download with proper headers
-            curl -sL -A "Mozilla/5.0" -o "raw_$i.jpg" "$URL"
+            curl -sL -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+              -H "Referer: https://google.com" \
+              --retry 3 -o "raw_$i.jpg" "$URL"
             
-            # Convert and resize to 1080x1920
+            # Check if valid image
+            if ! file "raw_$i.jpg" | grep -qE "JPEG|PNG|image"; then
+              echo "Invalid image, creating placeholder"
+              convert -size 1080x1920 xc:'#1a1a2e' "raw_$i.jpg"
+            fi
+            
+            # Resize to 1080x1920 and add dark overlay for text readability
             ffmpeg -y -i "raw_$i.jpg" \
-              -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920" \
+              -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,eq=brightness=-0.1:saturation=1.2" \
               "slides/slide$i.jpg" 2>/dev/null || \
-            ffmpeg -y -f lavfi -i "color=c=black:s=1080x1920:d=1" -frames:v 1 "slides/slide$i.jpg"
+            convert -size 1080x1920 xc:'#1a1a2e' "slides/slide$i.jpg"
             
-            ls -la "slides/slide$i.jpg"
+            # Save text for later
+            echo "$TEXT" > "slides/text$i.txt"
           done
       
-      - name: Render video
+      - name: Create animated slides with text
         run: |
-          # Create individual video clips from each image (3 seconds each)
+          JOB_FILE="jobs/${{ inputs.job_id }}.json"
+          HEADLINE=$(jq -r '.headline' "$JOB_FILE")
+          ANIM_STYLE=$(jq -r '.animation_style // "random"' "$JOB_FILE")
+          
+          # Animation styles: zoom_in, zoom_out, pan_left, pan_right, ken_burns
+          ANIMATIONS=("zoom_in" "zoom_out" "pan_right" "ken_burns")
+          
           for i in 0 1 2 3 4; do
-            ffmpeg -y -loop 1 -i "slides/slide$i.jpg" -t 3 -c:v libx264 -pix_fmt yuv420p -r 30 "clip$i.mp4"
+            TEXT=$(cat "slides/text$i.txt")
+            
+            # Pick animation (rotate through or use specified)
+            if [ "$ANIM_STYLE" = "random" ]; then
+              ANIM=${ANIMATIONS[$i % ${#ANIMATIONS[@]}]}
+            else
+              ANIM=$ANIM_STYLE
+            fi
+            
+            echo "Creating slide $i with animation: $ANIM, text: $TEXT"
+            
+            # Set zoompan filter based on animation style
+            case $ANIM in
+              zoom_in)
+                ZOOMPAN="zoompan=z='min(zoom+0.002,1.3)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
+                ;;
+              zoom_out)
+                ZOOMPAN="zoompan=z='if(lte(zoom,1.0),1.3,max(1.001,zoom-0.002))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
+                ;;
+              pan_left)
+                ZOOMPAN="zoompan=z='1.1':x='if(lte(on,1),0,x+2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
+                ;;
+              pan_right)
+                ZOOMPAN="zoompan=z='1.1':x='if(lte(on,1),iw,x-2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
+                ;;
+              ken_burns)
+                ZOOMPAN="zoompan=z='min(zoom+0.0015,1.2)':x='iw/2-(iw/zoom/2)+sin(on/30)*20':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
+                ;;
+            esac
+            
+            # Escape text for FFmpeg
+            ESCAPED_TEXT=$(echo "$TEXT" | sed "s/'/'\\\\''/g" | sed 's/:/\\:/g')
+            
+            # First slide gets "ASIANBUS NEWS" header and BREAKING badge
+            if [ $i -eq 0 ]; then
+              HEADER="drawbox=x=0:y=0:w=1080:h=100:c=0xFF2D78:t=fill,drawtext=text='ASIANBUS NEWS':fontsize=48:fontcolor=white:x=30:y=55:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf,"
+              BADGE="drawbox=x=40:y=140:w=220:h=60:c=red:t=fill,drawtext=text='BREAKING':fontsize=36:fontcolor=white:x=80:y=180:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf,"
+            else
+              HEADER="drawbox=x=0:y=0:w=1080:h=100:c=0xFF2D78:t=fill,drawtext=text='ASIANBUS NEWS':fontsize=48:fontcolor=white:x=30:y=55:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf,"
+              BADGE=""
+            fi
+            
+            # Last slide gets CTA
+            if [ $i -eq 4 ]; then
+              CTA=",drawbox=x=200:y=1650:w=680:h=100:c=0xFF2D78:t=fill,drawtext=text='TAP FOR FULL STORY':fontsize=40:fontcolor=white:x=(w-text_w)/2:y=1710:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            else
+              CTA=",drawtext=text='SWIPE →':fontsize=36:fontcolor=white:x=(w-text_w)/2:y=1750:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            fi
+            
+            # Main text with shadow
+            MAIN_TEXT="drawtext=text='$ESCAPED_TEXT':fontsize=72:fontcolor=white:x=(w-text_w)/2:y=900:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:shadowcolor=black@0.8:shadowx=4:shadowy=4"
+            
+            # Slide counter
+            COUNTER=",drawtext=text='$((i+1))/5':fontsize=36:fontcolor=white:x=w-100:y=55:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            
+            # Create animated clip with text overlay
+            ffmpeg -y -i "slides/slide$i.jpg" \
+              -vf "${ZOOMPAN},${HEADER}${BADGE}${MAIN_TEXT}${CTA}${COUNTER}" \
+              -t 3 -c:v libx264 -pix_fmt yuv420p -r 30 \
+              "clip$i.mp4" 2>&1 | tail -5
+          done
+      
+      - name: Add transitions and combine
+        run: |
+          # Create fade transitions between clips
+          # First, add fade out to each clip except last
+          for i in 0 1 2 3; do
+            ffmpeg -y -i "clip$i.mp4" -vf "fade=t=out:st=2.7:d=0.3" -c:v libx264 -c:a copy "clip${i}_fade.mp4"
+          done
+          cp clip4.mp4 clip4_fade.mp4
+          
+          # Add fade in to each clip except first
+          cp clip0_fade.mp4 clip0_final.mp4
+          for i in 1 2 3 4; do
+            ffmpeg -y -i "clip${i}_fade.mp4" -vf "fade=t=in:st=0:d=0.3" -c:v libx264 -c:a copy "clip${i}_final.mp4"
           done
           
-          # Create concat list
-          echo "file 'clip0.mp4'" > concat.txt
-          echo "file 'clip1.mp4'" >> concat.txt
-          echo "file 'clip2.mp4'" >> concat.txt
-          echo "file 'clip3.mp4'" >> concat.txt
-          echo "file 'clip4.mp4'" >> concat.txt
-          
           # Concat all clips
-          ffmpeg -y -f concat -safe 0 -i concat.txt -c copy output.mp4
+          echo "file 'clip0_final.mp4'" > concat.txt
+          echo "file 'clip1_final.mp4'" >> concat.txt
+          echo "file 'clip2_final.mp4'" >> concat.txt
+          echo "file 'clip3_final.mp4'" >> concat.txt
+          echo "file 'clip4_final.mp4'" >> concat.txt
+          
+          ffmpeg -y -f concat -safe 0 -i concat.txt -c copy video_no_audio.mp4
+          
+          ls -la video_no_audio.mp4
+      
+      - name: Add music and finalize
+        run: |
+          # Combine video with music
+          ffmpeg -y -i video_no_audio.mp4 -i music_trimmed.mp3 \
+            -c:v copy -c:a aac -b:a 192k \
+            -map 0:v:0 -map 1:a:0 \
+            -shortest \
+            output.mp4
           
           ls -la output.mp4
+          
+          # Verify output
+          ffprobe -v error -show_entries stream=codec_type,duration -of csv=p=0 output.mp4
       
       - name: Upload to catbox
         id: upload
@@ -71,7 +203,9 @@ jobs:
         run: |
           mkdir -p results
           VIDEO_URL=$(cat video_url.txt)
-          echo "{\"job_id\": \"${{ inputs.job_id }}\", \"video_url\": \"$VIDEO_URL\", \"status\": \"complete\"}" > "results/${{ inputs.job_id }}.json"
+          JOB_FILE="jobs/${{ inputs.job_id }}.json"
+          HEADLINE=$(jq -r '.headline' "$JOB_FILE")
+          echo "{\"job_id\": \"${{ inputs.job_id }}\", \"video_url\": \"$VIDEO_URL\", \"headline\": \"$HEADLINE\", \"status\": \"complete\", \"rendered_at\": \"$(date -Iseconds)\"}" > "results/${{ inputs.job_id }}.json"
       
       - name: Commit result
         run: |
@@ -85,5 +219,17 @@ jobs:
       - name: Summary
         run: |
           VIDEO_URL=$(cat video_url.txt)
+          JOB_FILE="jobs/${{ inputs.job_id }}.json"
+          HEADLINE=$(jq -r '.headline' "$JOB_FILE")
           echo "## ✅ Video Rendered!" >> $GITHUB_STEP_SUMMARY
+          echo "**Headline:** $HEADLINE" >> $GITHUB_STEP_SUMMARY
           echo "**URL:** $VIDEO_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Features:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Ken Burns / zoom animation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Text overlays with shadows" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ ASIANBUS NEWS header" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Trendy music track" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Fade transitions" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ BREAKING badge (first slide)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ CTA on last slide" >> $GITHUB_STEP_SUMMARY
