@@ -20,9 +20,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg curl jq imagemagick fonts-dejavu-core
-          
-          # Verify font exists
-          ls -la /usr/share/fonts/truetype/dejavu/ || echo "DejaVu fonts not found!"
           fc-list | grep -i dejavu | head -3 || echo "Font not in fc-list"
       
       - name: Prepare music track
@@ -48,125 +45,119 @@ jobs:
           
           for idx in 0 1 2 3 4; do
             URL=$(jq -r ".slides[$idx].image" "$JOB_FILE")
-            TEXT=$(jq -r ".slides[$idx].text" "$JOB_FILE")
             RAW="raw_${idx}.jpg"
             SLIDE="slides/slide${idx}.jpg"
             
-            echo "=== Slide $idx: $TEXT ==="
+            echo "=== Slide $idx ==="
             echo "URL: $URL"
             
-            # Download
             curl -sL --max-time 30 \
               -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0" \
               -o "$RAW" "$URL"
             
-            # Check download
             if [ -f "$RAW" ]; then
               SIZE=$(stat -c%s "$RAW" 2>/dev/null || echo 0)
               echo "Downloaded: $SIZE bytes"
               
               if [ "$SIZE" -gt 5000 ]; then
-                # Process with ffmpeg
                 ffmpeg -y -i "$RAW" \
                   -vf "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920" \
                   "$SLIDE" 2>&1 | tail -2
                 
-                if [ -f "$SLIDE" ]; then
-                  echo "✓ Processed OK"
-                else
-                  echo "FFmpeg failed, using ImageMagick..."
+                if [ ! -f "$SLIDE" ]; then
                   convert "$RAW" -resize 1080x1920^ -gravity center -extent 1080x1920 "$SLIDE"
                 fi
               else
-                echo "Too small, creating placeholder"
                 convert -size 1080x1920 -define gradient:angle=135 gradient:'#1a1a2e'-'#16213e' "$SLIDE"
               fi
             else
-              echo "Download failed, creating placeholder"
               convert -size 1080x1920 -define gradient:angle=135 gradient:'#1a1a2e'-'#16213e' "$SLIDE"
             fi
             
-            echo "$TEXT" > "slides/text${idx}.txt"
             ls -la "$SLIDE"
-            echo ""
           done
       
       - name: Create animated slides with text
         run: |
           JOB_FILE="jobs/${{ inputs.job_id }}.json"
-          HEADLINE=$(jq -r '.headline' "$JOB_FILE")
+          FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+          FONT_REG="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+          PINK="0xE91E63"
           
-          # Animation presets
           ANIMS=("zoom_in" "zoom_out" "pan_right" "ken_burns")
           
           for i in 0 1 2 3 4; do
-            TEXT=$(cat "slides/text$i.txt")
             ANIM=${ANIMS[$i % 4]}
             
-            echo "Slide $i: $TEXT (animation: $ANIM)"
+            # New structured format: line1 (white), line2 (pink), line3 (white), subtitle (grey)
+            LINE1=$(jq -r ".slides[$i].line1 // empty" "$JOB_FILE")
+            LINE2=$(jq -r ".slides[$i].line2 // empty" "$JOB_FILE")
+            LINE3=$(jq -r ".slides[$i].line3 // empty" "$JOB_FILE")
+            SUBTITLE=$(jq -r ".slides[$i].subtitle // empty" "$JOB_FILE")
             
-            # Zoompan settings
+            # Fallback for old "text" field format
+            if [ -z "$LINE1" ] && [ -z "$LINE2" ]; then
+              OLD_TEXT=$(jq -r ".slides[$i].text // empty" "$JOB_FILE")
+              if [ -n "$OLD_TEXT" ]; then
+                LINE1="$OLD_TEXT"
+              fi
+            fi
+            
+            echo "Slide $i: L1='$LINE1' L2='$LINE2' L3='$LINE3' Sub='$SUBTITLE'"
+            
+            # Zoompan
             case $ANIM in
-              zoom_in)
-                ZP="zoompan=z='min(zoom+0.002,1.25)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
-                ;;
-              zoom_out)
-                ZP="zoompan=z='if(lte(zoom,1.0),1.25,max(1.001,zoom-0.002))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
-                ;;
-              pan_right)
-                ZP="zoompan=z='1.15':x='if(lte(on,1),0,min(x+3,iw-iw/zoom))':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
-                ;;
-              ken_burns)
-                ZP="zoompan=z='min(zoom+0.0012,1.15)':x='iw/2-(iw/zoom/2)+sin(on/25)*15':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30"
-                ;;
+              zoom_in)  ZP="zoompan=z='min(zoom+0.002,1.25)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30" ;;
+              zoom_out) ZP="zoompan=z='if(lte(zoom,1.0),1.25,max(1.001,zoom-0.002))':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30" ;;
+              pan_right) ZP="zoompan=z='1.15':x='if(lte(on,1),0,min(x+3,iw-iw/zoom))':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30" ;;
+              ken_burns) ZP="zoompan=z='min(zoom+0.0012,1.15)':x='iw/2-(iw/zoom/2)+sin(on/25)*15':y='ih/2-(ih/zoom/2)':d=90:s=1080x1920:fps=30" ;;
             esac
             
-            # Escape special chars for FFmpeg
-            SAFE_TEXT=$(echo "$TEXT" | sed "s/'/\\\\\\'/g" | sed 's/:/\\:/g' | sed 's/%/%%/g')
+            # Escape for FFmpeg drawtext
+            esc() { echo "$1" | sed "s/'/'\\\\\\\\''/g" | sed 's/:/\\:/g' | sed 's/%/%%/g'; }
             
-            # Truncate text if too long (max ~25 chars for clean display)
-            if [ ${#TEXT} -gt 28 ]; then
-              # Split into two lines
-              WORDS=($TEXT)
-              HALF=$(( ${#WORDS[@]} / 2 ))
-              LINE1="${WORDS[@]:0:$HALF}"
-              LINE2="${WORDS[@]:$HALF}"
-              SAFE_LINE1=$(echo "$LINE1" | sed "s/'/\\\\\\'/g" | sed 's/:/\\:/g')
-              SAFE_LINE2=$(echo "$LINE2" | sed "s/'/\\\\\\'/g" | sed 's/:/\\:/g')
-              MAIN_TEXT="drawtext=text='$SAFE_LINE1':fontsize=52:fontcolor=white:x=(w-text_w)/2:y=850:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:shadowcolor=black@0.9:shadowx=3:shadowy=3,drawtext=text='$SAFE_LINE2':fontsize=52:fontcolor=white:x=(w-text_w)/2:y=920:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:shadowcolor=black@0.9:shadowx=3:shadowy=3"
-            else
-              MAIN_TEXT="drawtext=text='$SAFE_TEXT':fontsize=56:fontcolor=white:x=(w-text_w)/2:y=880:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:shadowcolor=black@0.9:shadowx=3:shadowy=3"
-            fi
+            S1=$(esc "$LINE1")
+            S2=$(esc "$LINE2")
+            S3=$(esc "$LINE3")
+            S4=$(esc "$SUBTITLE")
             
             # Header bar
-            HEADER="drawbox=x=0:y=0:w=1080:h=90:c=0xE91E63:t=fill,drawtext=text='ASIANBUS NEWS':fontsize=42:fontcolor=white:x=30:y=50:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            HEADER="drawbox=x=0:y=0:w=1080:h=90:c=${PINK}:t=fill,drawtext=text='ASIANBUS NEWS':fontsize=42:fontcolor=white:x=30:y=28:fontfile=${FONT}"
+            CTR="drawtext=text='$((i+1))/5':fontsize=32:fontcolor=white:x=w-90:y=32:fontfile=${FONT}"
             
-            # Slide counter
-            COUNTER="drawtext=text='$((i+1))/5':fontsize=32:fontcolor=white:x=w-90:y=50:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-            
-            # First slide: BREAKING badge
+            # BREAKING badge (slide 1 only)
+            BADGE=""
             if [ $i -eq 0 ]; then
-              BADGE=",drawbox=x=40:y=130:w=200:h=55:c=red:t=fill,drawtext=text='BREAKING':fontsize=32:fontcolor=white:x=75:y=165:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-            else
-              BADGE=""
+              BADGE=",drawbox=x=40:y=130:w=200:h=55:c=red:t=fill,drawtext=text='BREAKING':fontsize=32:fontcolor=white:x=75:y=140:fontfile=${FONT}"
             fi
             
-            # Last slide: CTA
+            # Headline text - stacked centered lines, no dark box
+            TXT=""
+            BY=780
+            if [ -n "$S1" ]; then
+              TXT="${TXT},drawtext=text='${S1}':fontsize=64:fontcolor=white:x=(w-text_w)/2:y=${BY}:fontfile=${FONT}:shadowcolor=black@0.8:shadowx=4:shadowy=4"
+            fi
+            if [ -n "$S2" ]; then
+              BY2=$((BY+80))
+              TXT="${TXT},drawtext=text='${S2}':fontsize=68:fontcolor=${PINK}:x=(w-text_w)/2:y=${BY2}:fontfile=${FONT}:shadowcolor=black@0.8:shadowx=4:shadowy=4"
+            fi
+            if [ -n "$S3" ]; then
+              BY3=$((BY+160))
+              TXT="${TXT},drawtext=text='${S3}':fontsize=64:fontcolor=white:x=(w-text_w)/2:y=${BY3}:fontfile=${FONT}:shadowcolor=black@0.8:shadowx=4:shadowy=4"
+            fi
+            if [ -n "$S4" ]; then
+              BY4=$((BY+240))
+              TXT="${TXT},drawtext=text='${S4}':fontsize=38:fontcolor=0xCCCCCC:x=(w-text_w)/2:y=${BY4}:fontfile=${FONT_REG}:shadowcolor=black@0.7:shadowx=2:shadowy=2"
+            fi
+            
+            # CTA on last slide only
+            CTA=""
             if [ $i -eq 4 ]; then
-              CTA=",drawbox=x=240:y=1680:w=600:h=80:c=0xE91E63:t=fill,drawtext=text='LINK IN BIO':fontsize=36:fontcolor=white:x=(w-text_w)/2:y=1725:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-            else
-              CTA=""
+              CTA=",drawbox=x=240:y=1680:w=600:h=80:c=${PINK}:t=fill,drawtext=text='LINK IN BIO':fontsize=36:fontcolor=white:x=(w-text_w)/2:y=1695:fontfile=${FONT}"
             fi
             
-            # Dark overlay for text readability - stronger opacity
-            OVERLAY="drawbox=x=0:y=750:w=1080:h=300:c=black@0.7:t=fill"
+            FILTER="${ZP},${HEADER},${CTR}${BADGE}${TXT}${CTA}"
             
-            # Build full filter
-            FILTER="${ZP},${OVERLAY},${HEADER},${COUNTER}${BADGE},${MAIN_TEXT}${CTA}"
-            
-            echo "FILTER=$FILTER"
-            
-            # Run ffmpeg and capture ALL output
             ffmpeg -y -i "slides/slide$i.jpg" \
               -vf "$FILTER" \
               -t 3 -c:v libx264 -pix_fmt yuv420p -r 30 \
@@ -177,7 +168,6 @@ jobs:
       
       - name: Add transitions and combine
         run: |
-          # Add fades
           for i in 0 1 2 3; do
             ffmpeg -y -i "clip$i.mp4" -vf "fade=t=out:st=2.7:d=0.3" -c:v libx264 -c:a copy "clip${i}_fade.mp4"
           done
@@ -188,7 +178,6 @@ jobs:
             ffmpeg -y -i "clip${i}_fade.mp4" -vf "fade=t=in:st=0:d=0.3" -c:v libx264 -c:a copy "clip${i}_final.mp4"
           done
           
-          # Concat
           for i in 0 1 2 3 4; do echo "file 'clip${i}_final.mp4'"; done > concat.txt
           ffmpeg -y -f concat -safe 0 -i concat.txt -c copy video_no_audio.mp4
           ls -la video_no_audio.mp4
