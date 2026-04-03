@@ -153,9 +153,9 @@ jobs:
             
             # Last slide: CTA
             if [ $i -eq 4 ]; then
-              CTA=",drawbox=x=240:y=1680:w=600:h=80:c=0xE91E63:t=fill,drawtext=text='FULL STORY IN BIO':fontsize=36:fontcolor=white:x=(w-text_w)/2:y=1725:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+              CTA=",drawbox=x=240:y=1680:w=600:h=80:c=0xE91E63:t=fill,drawtext=text='LINK IN BIO':fontsize=36:fontcolor=white:x=(w-text_w)/2:y=1725:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
             else
-              CTA=",drawtext=text='SWIPE →':fontsize=32:fontcolor=white@0.9:x=(w-text_w)/2:y=1780:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+              CTA=""
             fi
             
             # Dark overlay for text readability - stronger opacity
