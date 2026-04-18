@@ -1,0 +1,47 @@
+{
+  "headline": "K-Pop's Big Four Unite for Global Festival",
+  "slides": [
+    {
+      "image": "https://en.yna.co.kr/view/AEN20260416009400315",
+      "line1": "K-POP GIANTS",
+      "line2": "UNITE",
+      "line3": "JOINT VENTURE",
+      "subtitle": "HYBE, SM, JYP, YG join forces for first time"
+    },
+    {
+      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/HYBE_logo.svg/1200px-HYBE_logo.svg.png",
+      "line1": "HYBE",
+      "line2": "BTS AGENCY",
+      "line3": "LEADS PUSH",
+      "subtitle": "Home to BTS, NewJeans, Seventeen, LE SSERAFIM"
+    },
+    {
+      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/SM_Entertainment_logo.svg/1200px-SM_Entertainment_logo.svg.png",
+      "line1": "SM ENTERTAINMENT",
+      "line2": "NCT AESPA",
+      "line3": "JOINS FORCES",
+      "subtitle": "Legendary agency with EXO, Red Velvet, aespa"
+    },
+    {
+      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/JYP_Entertainment_logo.svg/1200px-JYP_Entertainment_logo.svg.png",
+      "line1": "JYP ENTERTAINMENT",
+      "line2": "TWICE STRAY KIDS",
+      "line3": "COLLABORATES",
+      "subtitle": "Twice, Stray Kids, ITZY, NMIXX agency"
+    },
+    {
+      "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/YG_Entertainment_logo.svg/1200px-YG_Entertainment_logo.svg.png",
+      "line1": "YG ENTERTAINMENT",
+      "line2": "BLACKPINK TREASURE",
+      "line3": "PARTNERS UP",
+      "subtitle": "Blackpink, Treasure, BABYMONSTER home"
+    },
+    {
+      "image": "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80",
+      "line1": "FANOMENON FESTIVAL",
+      "line2": "COACHELLA RIVAL",
+      "line3": "GLOBAL STAGE",
+      "subtitle": "Massive K-pop festival planned for 2027"
+    }
+  ]
+}
