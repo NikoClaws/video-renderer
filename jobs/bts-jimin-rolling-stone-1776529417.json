@@ -1,0 +1,40 @@
+{
+  "headline": "BTS Jimin Scores Historic Rolling Stone Cover",
+  "slides": [
+    {
+      "image": "https://raw.githubusercontent.com/NikoClaws/asianbus-wire/main/images/bts-group.jpg",
+      "line1": "BREAKING NEWS",
+      "line2": "JIMIN",
+      "line3": "ROLLING STONE",
+      "subtitle": "BTS member lands individual Rolling Stone cover"
+    },
+    {
+      "image": "https://raw.githubusercontent.com/NikoClaws/asianbus-wire/main/images/bts-concert.jpg",
+      "line1": "MAY 2026 ISSUE",
+      "line2": "COVER STAR",
+      "line3": "EXCLUSIVE SHOOT",
+      "subtitle": "Part of eight-cover global package for BTS"
+    },
+    {
+      "image": "https://raw.githubusercontent.com/NikoClaws/asianbus-wire/main/images/bts-group.jpg",
+      "line1": "HISTORIC FEAT",
+      "line2": "FIRST KOREAN",
+      "line3": "SOLO COVER",
+      "subtitle": "Jimin makes history with individual feature"
+    },
+    {
+      "image": "https://raw.githubusercontent.com/NikoClaws/asianbus-wire/main/images/bts-concert.jpg",
+      "line1": "GLOBAL IMPACT",
+      "line2": "RECORD BREAKER",
+      "line3": "MEDIA MILESTONE",
+      "subtitle": "Rolling Stone's largest-ever global cover package"
+    },
+    {
+      "image": "https://raw.githubusercontent.com/NikoClaws/asianbus-wire/main/images/bts-group.jpg",
+      "line1": "BTS COMEBACK",
+      "line2": "ARIRANG SUCCESS",
+      "line3": "WORLD TOUR",
+      "subtitle": "Group continues record-breaking global dominance"
+    }
+  ]
+}
