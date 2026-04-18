@@ -1,0 +1,40 @@
+{
+  "headline": "BTS ARIRANG WORLD TOUR HITS TOKYO WITH MASSIVE CROWDS",
+  "slides": [
+    {
+      "image": "https://asianbus.com/images/bts-seoul-concert.jpg",
+      "line1": "BTS COMEBACK",
+      "line2": "ARIRANG TOUR",
+      "line3": "TOKYO DOME",
+      "subtitle": "First international stop after years-long hiatus"
+    },
+    {
+      "image": "https://asianbus.com/images/bts-concert.jpg",
+      "line1": "TOKYO CONCERT",
+      "line2": "SOLD OUT",
+      "line3": "TENS OF THOUSANDS",
+      "subtitle": "Massive crowds gather at Tokyo Dome for historic show"
+    },
+    {
+      "image": "https://asianbus.com/images/bts-arirang.jpg",
+      "line1": "NEW ALBUM",
+      "line2": "ARIRANG",
+      "line3": "CHART TOPPER",
+      "subtitle": "5th studio album dominates global charts"
+    },
+    {
+      "image": "https://asianbus.com/images/bts-arirang-release-today.jpg",
+      "line1": "WORLD TOUR",
+      "line2": "85 SHOWS",
+      "line3": "34 CITIES",
+      "subtitle": "Largest tour in K-pop history spans 2026-2027"
+    },
+    {
+      "image": "https://asianbus.com/images/bts-comeback-success.jpg",
+      "line1": "MILITARY RETURN",
+      "line2": "ALL 7 MEMBERS",
+      "line3": "REUNITED STAGE",
+      "subtitle": "First full group performance after service completion"
+    }
+  ]
+}
